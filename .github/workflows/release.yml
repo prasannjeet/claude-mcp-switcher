@@ -106,7 +106,18 @@ jobs:
             ${{ steps.changelog.outputs.LOG }}
 
             ---
-            > 💡 **macOS users:** If the app says it's damaged, right-click → Open to bypass Gatekeeper (unsigned build).
+            ### 🍎 macOS Users — Build Locally (Recommended)
+
+            The macOS build is unsigned, which may trigger a Gatekeeper warning. The easiest workaround is to build the app yourself locally — it only takes a minute:
+
+            ```bash
+            git clone https://github.com/prasannjeet/claude-mcp-switcher.git
+            cd claude-mcp-switcher
+            npm install
+            npm run build
+            ```
+
+            You'll find the built app inside the `release/` folder (e.g. `release/mac/MCP Server Switcher.app` or a `.dmg` file in `release/`). Just open it directly from there.
           files: artifacts/*
           draft: false
           prerelease: false
