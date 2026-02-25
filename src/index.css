@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* No drag on body — only the explicit .drag-region handles window dragging */
+  -webkit-app-region: no-drag;
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+/* Custom toggle animation */
+.toggle-knob {
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+/* Toast animation */
+@keyframes slideIn {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes slideOut {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(100%); opacity: 0; }
+}
+.toast-enter {
+  animation: slideIn 0.3s ease forwards;
+}
+.toast-exit {
+  animation: slideOut 0.3s ease forwards;
+}
