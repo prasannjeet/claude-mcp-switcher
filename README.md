@@ -84,4 +84,4 @@ npm run build
 
 ## 📄 License
 
-[ISC](./LICENSE)
+[MIT](./LICENSE)
