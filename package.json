@@ -1,6 +1,6 @@
 {
   "name": "mcp-server-switcher",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Toggle MCP servers on/off in your Claude config",
   "main": "electron/main.cjs",
   "scripts": {
@@ -19,13 +19,35 @@
       "output": "release"
     },
     "mac": {
-      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }]
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
     },
     "linux": {
-      "target": [{ "target": "AppImage", "arch": ["x64"] }]
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }]
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     }
   },
   "keywords": [],
