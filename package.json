@@ -15,14 +15,17 @@
       "dist/**/*",
       "electron/**/*"
     ],
+    "directories": {
+      "output": "release"
+    },
     "mac": {
-      "target": "dir"
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }]
     },
     "linux": {
-      "target": "dir"
+      "target": [{ "target": "AppImage", "arch": ["x64"] }]
     },
     "win": {
-      "target": "dir"
+      "target": [{ "target": "nsis", "arch": ["x64"] }]
     }
   },
   "keywords": [],
