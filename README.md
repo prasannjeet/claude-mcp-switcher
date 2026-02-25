@@ -1,4 +1,6 @@
-# 🔌 MCP Server Switcher for Claude
+<p align="center">
+  <img src="https://raw.githubusercontent.com/prasannjeet/claude-mcp-switcher/main/assets/logo.png" alt="Claude MCP Switcher" width="600" />
+</p>
 
 A lightweight desktop app to manage your Claude MCP servers — no more digging through JSON files.
 
