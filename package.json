@@ -5,14 +5,20 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite build && electron .",
-    "build": "vite build && electron-builder",
-    "vite:dev": "vite"
+    "build": "node -e \"['dist/mac-arm64','dist/win-unpacked','dist/linux-unpacked'].forEach(p=>require('fs').rmSync(p,{recursive:true,force:true}))\" && vite build && electron-builder",
+    "vite:dev": "vite",
+    "vite:build": "vite build"
   },
   "build": {
     "appId": "com.mcpswitcher.app",
     "productName": "MCP Server Switcher",
     "files": [
       "dist/**/*",
+      "!dist/mac-arm64/**",
+      "!dist/win-unpacked/**",
+      "!dist/linux-unpacked/**",
+      "!dist/builder-debug.yml",
+      "!dist/builder-effective-config.yaml",
       "electron/**/*"
     ],
     "directories": {
@@ -23,11 +29,17 @@
         {
           "target": "dmg",
           "arch": [
-            "x64",
-            "arm64"
+            "arm64",
+            "x64"
           ]
         }
-      ]
+      ],
+      "electronLanguages": ["en"]
+    },
+    "dmg": {
+      "format": "ULFO",
+      "writeUpdateInfo": false,
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": [
