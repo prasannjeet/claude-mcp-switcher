@@ -1,6 +1,6 @@
 {
   "name": "mcp-server-switcher",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Toggle MCP servers on/off in your Claude config",
   "main": "electron/main.cjs",
   "scripts": {
@@ -29,7 +29,9 @@
           ]
         }
       ],
-      "electronLanguages": ["en"]
+      "electronLanguages": [
+        "en"
+      ]
     },
     "dmg": {
       "format": "ULFO",
