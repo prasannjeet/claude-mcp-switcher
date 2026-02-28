@@ -42,7 +42,9 @@ export default function App() {
 
   // Load system paths on mount
   useEffect(() => {
-    window.electronAPI.getSystemPaths().then(setSystemPaths);
+    window.electronAPI.getSystemPaths()
+      .then(setSystemPaths)
+      .catch((err) => console.error("Failed to load system paths:", err));
   }, []);
 
   // Persist user paths to localStorage
@@ -63,7 +65,15 @@ export default function App() {
   const loadFile = async () => {
     setLoadError("");
     setTestResults({});
-    const result = await window.electronAPI.loadConfig(filePath);
+    let result;
+    try {
+      result = await window.electronAPI.loadConfig(filePath);
+    } catch (err) {
+      setLoadError(`IPC error: ${err.message}`);
+      setLoaded(false);
+      setServers([]);
+      return;
+    }
     if (result.error) {
       setLoadError(result.error);
       setLoaded(false);
@@ -72,11 +82,18 @@ export default function App() {
     }
 
     const list = [];
+    const seen = new Set();
     for (const [name, config] of Object.entries(result.enabled || {})) {
-      list.push({ name, config, enabled: true });
+      if (!seen.has(name) && config !== null && typeof config === "object") {
+        seen.add(name);
+        list.push({ name, config, enabled: true });
+      }
     }
     for (const [name, config] of Object.entries(result.disabled || {})) {
-      list.push({ name, config, enabled: false });
+      if (!seen.has(name) && config !== null && typeof config === "object") {
+        seen.add(name);
+        list.push({ name, config, enabled: false });
+      }
     }
     list.sort((a, b) => a.name.localeCompare(b.name));
 
