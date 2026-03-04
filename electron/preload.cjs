@@ -18,4 +18,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("test-server-stdio", serverConfig, extraPaths),
   testServerHttp: (serverConfig) =>
     ipcRenderer.invoke("test-server-http", serverConfig),
+  loadGroups: () =>
+    ipcRenderer.invoke("load-groups"),
+  saveGroups: (data) =>
+    ipcRenderer.invoke("save-groups", data),
+  activateGroup: (filePath, serverNamesToEnable) =>
+    ipcRenderer.invoke("activate-group", filePath, serverNamesToEnable),
 });

@@ -2,6 +2,26 @@ const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+
+// Groups file path
+function getGroupsPath() {
+  return path.join(app.getPath("userData"), "groups.json");
+}
+
+function readGroupsFile() {
+  const p = getGroupsPath();
+  try {
+    if (fs.existsSync(p)) {
+      return JSON.parse(fs.readFileSync(p, "utf-8"));
+    }
+  } catch { /* ignore */ }
+  return { version: 1, activeGroupId: null, groups: [] };
+}
+
+function writeGroupsFile(data) {
+  const p = getGroupsPath();
+  fs.writeFileSync(p, JSON.stringify(data, null, 2) + "\n", "utf-8");
+}
 const { spawn, execFile } = require("child_process");
 
 let mainWindow;
@@ -67,10 +87,16 @@ ipcMain.handle("load-config", async (_event, filePath) => {
     if (!config.mcpServers) config.mcpServers = {};
     if (!config.mcpServers_disabled) config.mcpServers_disabled = {};
 
+    // Compute duplicate server names (appear in both enabled and disabled)
+    const enabledNames = Object.keys(config.mcpServers);
+    const disabledNames = Object.keys(config.mcpServers_disabled);
+    const duplicates = enabledNames.filter((n) => disabledNames.includes(n));
+
     return {
       enabled: config.mcpServers,
       disabled: config.mcpServers_disabled,
       resolvedPath: resolved,
+      duplicates,
     };
   } catch (err) {
     return { error: err.message };
@@ -357,6 +383,59 @@ ipcMain.handle("test-server-stdio", async (_event, serverConfig, extraPaths) => 
       }
     }
   });
+});
+
+// Load groups from userData
+ipcMain.handle("load-groups", async () => {
+  try {
+    return readGroupsFile();
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+// Save groups to userData
+ipcMain.handle("save-groups", async (_event, data) => {
+  try {
+    writeGroupsFile(data);
+    return { success: true };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+// Activate a group: enable only the listed servers, disable everything else
+ipcMain.handle("activate-group", async (_event, filePath, serverNamesToEnable) => {
+  try {
+    const resolved = expandPath(filePath.trim());
+    const raw = fs.readFileSync(resolved, "utf-8");
+    const config = JSON.parse(raw);
+
+    if (!config.mcpServers) config.mcpServers = {};
+    if (!config.mcpServers_disabled) config.mcpServers_disabled = {};
+
+    // Merge all servers into one pool
+    const all = { ...config.mcpServers_disabled, ...config.mcpServers };
+
+    const newEnabled = {};
+    const newDisabled = {};
+
+    for (const [name, cfg] of Object.entries(all)) {
+      if (serverNamesToEnable.includes(name)) {
+        newEnabled[name] = cfg;
+      } else {
+        newDisabled[name] = cfg;
+      }
+    }
+
+    config.mcpServers = newEnabled;
+    config.mcpServers_disabled = newDisabled;
+
+    fs.writeFileSync(resolved, JSON.stringify(config, null, 2) + "\n", "utf-8");
+    return { success: true };
+  } catch (err) {
+    return { error: err.message };
+  }
 });
 
 // Parse MCP response — handles both plain JSON and SSE (text/event-stream)

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import Fuse from "fuse.js";
-import { FolderOpen, Plus, RefreshCw, Server, Search, Info, FolderCog, PlayCircle, RotateCcw, X } from "lucide-react";
+import { FolderOpen, Plus, RefreshCw, Server, Search, Info, FolderCog, PlayCircle, RotateCcw, X, Layers } from "lucide-react";
 import ServerCard from "./components/ServerCard.jsx";
 import AddServerModal from "./components/AddServerModal.jsx";
 import ToolsGauge from "./components/ToolsGauge.jsx";
@@ -8,6 +8,9 @@ import ErrorDetailModal from "./components/ErrorDetailModal.jsx";
 import ToolsListModal from "./components/ToolsListModal.jsx";
 import PathsModal from "./components/PathsModal.jsx";
 import Toast from "./components/Toast.jsx";
+import GroupsTab from "./components/GroupsTab.jsx";
+import ConfirmModal from "./components/ConfirmModal.jsx";
+import useGroups from "./hooks/useGroups.js";
 
 const TOOL_LIMIT = 80;
 const USER_PATHS_KEY = "mcp-switcher-user-paths";
@@ -20,6 +23,11 @@ export default function App() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [toast, setToast] = useState(null);
   const [filter, setFilter] = useState("");
+  const [activeTab, setActiveTab] = useState("master");
+  const [duplicates, setDuplicates] = useState([]);
+  const [confirmModal, setConfirmModal] = useState(null);
+
+  const groupsHook = useGroups();
 
   // Test results: { [serverName]: { status, toolCount, tools, error } }
   const [testResults, setTestResults] = useState({});
@@ -98,8 +106,37 @@ export default function App() {
     list.sort((a, b) => a.name.localeCompare(b.name));
 
     setServers(list);
+    setDuplicates(result.duplicates || []);
     setLoaded(true);
+    groupsHook.loadGroups();
     showToast(`Loaded ${list.length} servers`);
+  };
+
+  // Lightweight re-read that preserves testResults
+  const refreshServers = async () => {
+    let result;
+    try {
+      result = await window.electronAPI.loadConfig(filePath);
+    } catch { return; }
+    if (result.error) return;
+
+    const list = [];
+    const seen = new Set();
+    for (const [name, config] of Object.entries(result.enabled || {})) {
+      if (!seen.has(name) && config !== null && typeof config === "object") {
+        seen.add(name);
+        list.push({ name, config, enabled: true });
+      }
+    }
+    for (const [name, config] of Object.entries(result.disabled || {})) {
+      if (!seen.has(name) && config !== null && typeof config === "object") {
+        seen.add(name);
+        list.push({ name, config, enabled: false });
+      }
+    }
+    list.sort((a, b) => a.name.localeCompare(b.name));
+    setServers(list);
+    setDuplicates(result.duplicates || []);
   };
 
   const handleToggle = async (serverName, currentEnabled) => {
@@ -115,12 +152,13 @@ export default function App() {
     showToast(`${serverName} ${newEnabled ? "enabled" : "disabled"}`);
   };
 
-  const handleDelete = async (serverName) => {
+  const doDelete = async (serverName) => {
     const result = await window.electronAPI.deleteServer(filePath, serverName);
     if (result.error) {
       showToast(result.error, "error");
       return;
     }
+    await groupsHook.removeServerFromAllGroups(serverName);
     setServers((prev) => prev.filter((s) => s.name !== serverName));
     setTestResults((prev) => {
       const next = { ...prev };
@@ -128,6 +166,33 @@ export default function App() {
       return next;
     });
     showToast(`${serverName} deleted`);
+  };
+
+  const handleDelete = async (serverName) => {
+    const affectedGroups = groupsHook.getGroupsForServer(serverName);
+    if (affectedGroups.length > 0) {
+      setConfirmModal({
+        title: "Delete Server",
+        message: (
+          <>
+            <strong className="text-slate-100">"{serverName}"</strong> belongs to{" "}
+            {affectedGroups.length} group{affectedGroups.length > 1 ? "s" : ""}:{" "}
+            <strong className="text-slate-100">
+              {affectedGroups.map((g) => g.name).join(", ")}
+            </strong>
+            . It will be removed from all groups. Continue?
+          </>
+        ),
+        confirmLabel: "Delete",
+        dangerous: true,
+        onConfirm: () => {
+          setConfirmModal(null);
+          doDelete(serverName);
+        },
+      });
+    } else {
+      doDelete(serverName);
+    }
   };
 
   const handleUpdateServer = async (serverName, newConfig) => {
@@ -393,7 +458,63 @@ export default function App() {
           </div>
         )}
 
+        {/* Tab bar */}
         {loaded && (
+          <div className="flex gap-1 bg-slate-900/60 p-1 rounded-lg mb-4">
+            <button
+              onClick={() => setActiveTab("master")}
+              className={`flex-1 flex items-center justify-center gap-2 text-sm py-2 rounded-md transition-colors ${
+                activeTab === "master"
+                  ? "bg-slate-700 text-white"
+                  : "text-slate-400 hover:text-slate-300"
+              }`}
+            >
+              <Server className="w-4 h-4" />
+              Master List
+            </button>
+            <button
+              onClick={() => setActiveTab("groups")}
+              className={`flex-1 flex items-center justify-center gap-2 text-sm py-2 rounded-md transition-colors ${
+                activeTab === "groups"
+                  ? "bg-slate-700 text-white"
+                  : "text-slate-400 hover:text-slate-300"
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              MCP Groups
+            </button>
+          </div>
+        )}
+
+        {loaded && activeTab === "groups" && (
+          <GroupsTab
+            groups={groupsHook.groups}
+            activeGroupId={groupsHook.activeGroupId}
+            servers={servers}
+            duplicates={duplicates}
+            onCreateGroup={async (name, serverNames) => {
+              await groupsHook.createGroup(name, serverNames);
+            }}
+            onEditGroup={async (id, name, serverNames) => {
+              await groupsHook.editGroup(id, name, serverNames);
+            }}
+            onDeleteGroup={async (id) => {
+              await groupsHook.deleteGroup(id);
+            }}
+            onActivateGroup={async (id) => {
+              const result = await groupsHook.activateGroup(id, servers, filePath);
+              if (result.error) {
+                showToast(result.error, "error");
+              } else {
+                await refreshServers();
+                showToast("Group activated");
+              }
+            }}
+            getStaleNames={groupsHook.getStaleNames}
+          />
+        )}
+
+        {loaded && activeTab === "master" && (
           <>
             {/* Stats bar + actions */}
             <div className="flex items-center justify-between mb-3">
@@ -582,6 +703,16 @@ export default function App() {
           serverName={toolsModal.serverName}
           tools={toolsModal.tools}
           onClose={() => setToolsModal(null)}
+        />
+      )}
+      {confirmModal && (
+        <ConfirmModal
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmLabel={confirmModal.confirmLabel}
+          dangerous={confirmModal.dangerous}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
         />
       )}
       {toast && (
