@@ -25,6 +25,7 @@ export default function ServerCard({
   onToggle,
   onDelete,
   onUpdate,
+  onRename,
   onTest,
   testResult,
   onShowError,
@@ -34,6 +35,8 @@ export default function ServerCard({
   const [toggling, setToggling] = useState(false);
   const [copied, setCopied] = useState(false);
   const [jsonCopied, setJsonCopied] = useState(false);
+  const [nameEditing, setNameEditing] = useState(false);
+  const [nameText, setNameText] = useState("");
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState("");
   const [jsonValid, setJsonValid] = useState(true);
@@ -130,13 +133,39 @@ export default function ServerCard({
         {/* Name + meta */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span
-              className={`font-medium text-sm truncate ${
-                enabled ? "text-slate-100" : "text-slate-400"
-              }`}
+            {nameEditing ? (
+              <input
+                autoFocus
+                value={nameText}
+                onChange={(e) => setNameText(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter") {
+                    const ok = await onRename(nameText);
+                    if (ok !== false) setNameEditing(false);
+                  } else if (e.key === "Escape") {
+                    setNameEditing(false);
+                  }
+                }}
+                onBlur={() => setNameEditing(false)}
+                className="font-medium text-sm bg-slate-700/60 border border-emerald-500/50 rounded px-1.5 py-0.5 text-slate-100 focus:outline-none focus:border-emerald-400 min-w-0 w-48"
+                spellCheck={false}
+              />
+            ) : (
+              <span
+                className={`font-medium text-sm truncate ${
+                  enabled ? "text-slate-100" : "text-slate-400"
+                }`}
+              >
+                {name}
+              </span>
+            )}
+            <button
+              onClick={() => { setNameText(name); setNameEditing(true); }}
+              className="p-1 text-slate-500 hover:text-slate-300 rounded-md hover:bg-slate-700/50 transition-colors flex-shrink-0"
+              title="Rename server"
             >
-              {name}
-            </span>
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
             <button
               onClick={handleCopy}
               className="p-1 text-slate-500 hover:text-slate-300 rounded-md hover:bg-slate-700/50 transition-colors flex-shrink-0"

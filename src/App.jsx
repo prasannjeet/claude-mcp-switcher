@@ -24,6 +24,7 @@ export default function App() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [toast, setToast] = useState(null);
   const [filter, setFilter] = useState("");
+  const [enabledOnTop, setEnabledOnTop] = useState(false);
   const [activeTab, setActiveTab] = useState("master");
   const [duplicates, setDuplicates] = useState([]);
   const [confirmModal, setConfirmModal] = useState(null);
@@ -214,6 +215,34 @@ export default function App() {
     return true;
   };
 
+  const handleRename = async (oldName, newName) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) return;
+
+    const result = await window.electronAPI.renameServer(filePath, oldName, trimmed);
+    if (result.error) {
+      showToast(result.error, "error");
+      return false;
+    }
+
+    setServers((prev) =>
+      prev.map((s) => (s.name === oldName ? { ...s, name: trimmed } : s))
+    );
+
+    setTestResults((prev) => {
+      if (!prev[oldName]) return prev;
+      const next = { ...prev };
+      next[trimmed] = next[oldName];
+      delete next[oldName];
+      return next;
+    });
+
+    await groupsHook.renameServerInGroups(oldName, trimmed);
+
+    showToast(`Renamed "${oldName}" → "${trimmed}"`);
+    return true;
+  };
+
   const handleAdd = async (name, config) => {
     const result = await window.electronAPI.addServer(filePath, name, config);
     if (result.error) {
@@ -390,9 +419,13 @@ export default function App() {
   );
 
   const filtered = useMemo(() => {
-    if (!filter.trim()) return servers;
-    return fuse.search(filter).map((r) => r.item);
-  }, [filter, fuse, servers]);
+    const base = !filter.trim() ? servers : fuse.search(filter).map((r) => r.item);
+    if (!enabledOnTop) return base;
+    return [...base].sort((a, b) => {
+      if (a.enabled === b.enabled) return 0;
+      return a.enabled ? -1 : 1;
+    });
+  }, [filter, fuse, servers, enabledOnTop]);
 
   const enabledCount = servers.filter((s) => s.enabled).length;
   const disabledCount = servers.filter((s) => !s.enabled).length;
@@ -536,6 +569,19 @@ export default function App() {
                 <span className="text-slate-400">
                   <span className="text-slate-300 font-semibold">{servers.length}</span> total
                 </span>
+                <span className="text-slate-600">|</span>
+                <button
+                  onClick={() => setEnabledOnTop((v) => !v)}
+                  className={`flex items-center gap-1.5 transition-colors ${
+                    enabledOnTop ? "text-emerald-400" : "text-slate-500 hover:text-slate-300"
+                  }`}
+                  title="Sort enabled servers to the top"
+                >
+                  <span className={`w-6 h-3.5 rounded-full flex items-center transition-colors ${enabledOnTop ? "bg-emerald-500/30" : "bg-slate-700"}`}>
+                    <span className={`w-2.5 h-2.5 rounded-full transition-all ${enabledOnTop ? "bg-emerald-400 ml-3" : "bg-slate-500 ml-0.5"}`} />
+                  </span>
+                  enabled on top
+                </button>
               </div>
               <button
                 onClick={() => setShowAddModal(true)}
@@ -652,6 +698,7 @@ export default function App() {
                     onToggle={() => handleToggle(s.name, s.enabled)}
                     onDelete={() => handleDelete(s.name)}
                     onUpdate={(newConfig) => handleUpdateServer(s.name, newConfig)}
+                    onRename={(newName) => handleRename(s.name, newName)}
                     onTest={() => handleTest(s.name)}
                     testResult={testResults[s.name]}
                     onShowError={() =>

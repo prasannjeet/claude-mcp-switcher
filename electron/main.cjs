@@ -206,6 +206,44 @@ ipcMain.handle("delete-server", async (_event, filePath, serverName) => {
   }
 });
 
+// Rename a server key in claude.json
+ipcMain.handle("rename-server", async (_event, filePath, oldName, newName) => {
+  try {
+    const resolved = expandPath(filePath.trim());
+    const raw = fs.readFileSync(resolved, "utf-8");
+    const config = JSON.parse(raw);
+
+    if (!config.mcpServers) config.mcpServers = {};
+    if (!config.mcpServers_disabled) config.mcpServers_disabled = {};
+
+    if (config.mcpServers[newName] || config.mcpServers_disabled[newName]) {
+      return { error: `A server named "${newName}" already exists.` };
+    }
+
+    const renameKey = (obj, from, to) => {
+      if (!(from in obj)) return obj;
+      const rebuilt = {};
+      for (const [k, v] of Object.entries(obj)) {
+        rebuilt[k === from ? to : k] = v;
+      }
+      return rebuilt;
+    };
+
+    if (config.mcpServers[oldName] !== undefined) {
+      config.mcpServers = renameKey(config.mcpServers, oldName, newName);
+    } else if (config.mcpServers_disabled[oldName] !== undefined) {
+      config.mcpServers_disabled = renameKey(config.mcpServers_disabled, oldName, newName);
+    } else {
+      return { error: `Server "${oldName}" not found.` };
+    }
+
+    fs.writeFileSync(resolved, JSON.stringify(config, null, 2) + "\n", "utf-8");
+    return { success: true };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
 // Read system PATH directories (platform-aware)
 ipcMain.handle("get-system-paths", async () => {
   const dirs = [];

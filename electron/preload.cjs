@@ -24,4 +24,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("save-groups", data),
   activateGroup: (filePath, serverNamesToEnable) =>
     ipcRenderer.invoke("activate-group", filePath, serverNamesToEnable),
+  renameServer: (filePath, oldName, newName) =>
+    ipcRenderer.invoke("rename-server", filePath, oldName, newName),
 });

@@ -51,6 +51,15 @@ export default function useGroups() {
     return { success: true };
   }, [groups]);
 
+  const renameServerInGroups = useCallback(async (oldName, newName) => {
+    const newGroups = groups.map((g) => ({
+      ...g,
+      serverNames: g.serverNames.map((n) => (n === oldName ? newName : n)),
+    }));
+    setGroups(newGroups);
+    await persist(newGroups);
+  }, [groups, persist]);
+
   const removeServerFromAllGroups = useCallback(async (serverName) => {
     const newGroups = groups.map((g) => ({
       ...g,
@@ -77,6 +86,7 @@ export default function useGroups() {
     editGroup,
     deleteGroup,
     activateGroup,
+    renameServerInGroups,
     removeServerFromAllGroups,
     getStaleNames,
     getGroupsForServer,
