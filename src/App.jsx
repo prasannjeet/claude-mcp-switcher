@@ -11,6 +11,7 @@ import Toast from "./components/Toast.jsx";
 import GroupsTab from "./components/GroupsTab.jsx";
 import ConfirmModal from "./components/ConfirmModal.jsx";
 import useGroups from "./hooks/useGroups.js";
+import { findMatchingGroup } from "./utils/findMatchingGroup.js";
 
 const TOOL_LIMIT = 80;
 const USER_PATHS_KEY = "mcp-switcher-user-paths";
@@ -28,6 +29,11 @@ export default function App() {
   const [confirmModal, setConfirmModal] = useState(null);
 
   const groupsHook = useGroups();
+
+  const activeGroupId = useMemo(
+    () => findMatchingGroup(servers, groupsHook.groups),
+    [servers, groupsHook.groups]
+  );
 
   // Test results: { [serverName]: { status, toolCount, tools, error } }
   const [testResults, setTestResults] = useState({});
@@ -489,7 +495,7 @@ export default function App() {
         {loaded && activeTab === "groups" && (
           <GroupsTab
             groups={groupsHook.groups}
-            activeGroupId={groupsHook.activeGroupId}
+            activeGroupId={activeGroupId}
             servers={servers}
             duplicates={duplicates}
             onCreateGroup={async (name, serverNames) => {

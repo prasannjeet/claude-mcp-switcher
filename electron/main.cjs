@@ -12,10 +12,13 @@ function readGroupsFile() {
   const p = getGroupsPath();
   try {
     if (fs.existsSync(p)) {
-      return JSON.parse(fs.readFileSync(p, "utf-8"));
+      const data = JSON.parse(fs.readFileSync(p, "utf-8"));
+      // Strip legacy activeGroupId — now derived from server state
+      const { activeGroupId: _, ...rest } = data;
+      return rest;
     }
   } catch { /* ignore */ }
-  return { version: 1, activeGroupId: null, groups: [] };
+  return { version: 1, groups: [] };
 }
 
 function writeGroupsFile(data) {
@@ -397,7 +400,9 @@ ipcMain.handle("load-groups", async () => {
 // Save groups to userData
 ipcMain.handle("save-groups", async (_event, data) => {
   try {
-    writeGroupsFile(data);
+    // Strip activeGroupId if present (now derived from server state, not persisted)
+    const { activeGroupId: _, ...rest } = data;
+    writeGroupsFile(rest);
     return { success: true };
   } catch (err) {
     return { error: err.message };
