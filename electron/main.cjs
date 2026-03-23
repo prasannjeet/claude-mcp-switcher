@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
@@ -574,5 +574,42 @@ ipcMain.handle("test-server-http", async (_event, serverConfig) => {
     return { tools, toolCount: tools.length };
   } catch (err) {
     return { error: `Connection failed: ${err.message}` };
+  }
+});
+
+// Check GitHub for latest release
+ipcMain.handle("check-for-update", async () => {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(
+      "https://api.github.com/repos/prasannjeet/claude-mcp-switcher/releases/latest",
+      {
+        headers: { Accept: "application/vnd.github.v3+json" },
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timer);
+
+    if (!res.ok) return { error: `HTTP ${res.status}` };
+
+    const data = await res.json();
+    const latestVersion = (data.tag_name || "").replace(/^v/, "");
+    const currentVersion = app.getVersion();
+    const htmlUrl = data.html_url || "";
+
+    return { latestVersion, currentVersion, htmlUrl };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+// Open a URL in the default external browser
+ipcMain.handle("open-external-url", async (_event, url) => {
+  try {
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (err) {
+    return { error: err.message };
   }
 });

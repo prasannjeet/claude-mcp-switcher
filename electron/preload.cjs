@@ -26,4 +26,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("activate-group", filePath, serverNamesToEnable),
   renameServer: (filePath, oldName, newName) =>
     ipcRenderer.invoke("rename-server", filePath, oldName, newName),
+  checkForUpdate: () => ipcRenderer.invoke("check-for-update"),
+  openExternalUrl: (url) => ipcRenderer.invoke("open-external-url", url),
 });

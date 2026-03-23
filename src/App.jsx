@@ -10,8 +10,19 @@ import PathsModal from "./components/PathsModal.jsx";
 import Toast from "./components/Toast.jsx";
 import GroupsTab from "./components/GroupsTab.jsx";
 import ConfirmModal from "./components/ConfirmModal.jsx";
+import UpdateBadge from "./components/UpdateBadge.jsx";
 import useGroups from "./hooks/useGroups.js";
 import { findMatchingGroup } from "./utils/findMatchingGroup.js";
+
+/** Return true if `latest` is strictly newer than `current` (semver major.minor.patch). */
+function isNewerVersion(latest, current) {
+  const parse = (v) => (v || "").replace(/^v/, "").split(".").map(Number);
+  const [lMaj = 0, lMin = 0, lPat = 0] = parse(latest);
+  const [cMaj = 0, cMin = 0, cPat = 0] = parse(current);
+  if (lMaj !== cMaj) return lMaj > cMaj;
+  if (lMin !== cMin) return lMin > cMin;
+  return lPat > cPat;
+}
 
 const TOOL_LIMIT = 80;
 const USER_PATHS_KEY = "mcp-switcher-user-paths";
@@ -28,6 +39,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("master");
   const [duplicates, setDuplicates] = useState([]);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [updateInfo, setUpdateInfo] = useState(null);
 
   const groupsHook = useGroups();
 
@@ -60,6 +72,24 @@ export default function App() {
     window.electronAPI.getSystemPaths()
       .then(setSystemPaths)
       .catch((err) => console.error("Failed to load system paths:", err));
+  }, []);
+
+  // Check for updates once on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await window.electronAPI.checkForUpdate();
+        if (cancelled || result.error) return;
+        const { latestVersion, currentVersion, htmlUrl } = result;
+        if (isNewerVersion(latestVersion, currentVersion)) {
+          setUpdateInfo({ latestVersion, htmlUrl });
+        }
+      } catch {
+        // Silently ignore — no update badge shown
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // Persist user paths to localStorage
@@ -440,14 +470,23 @@ export default function App() {
       <div className="flex-1 overflow-y-auto px-6 pb-6">
       <div className="max-w-3xl mx-auto w-full">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Server className="w-5 h-5 text-emerald-400" />
-            MCP Server Switcher
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Toggle your Claude MCP servers on and off
-          </p>
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+              <Server className="w-5 h-5 text-emerald-400" />
+              MCP Server Switcher
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Toggle your Claude MCP servers on and off
+            </p>
+          </div>
+          {updateInfo && (
+            <UpdateBadge
+              latestVersion={updateInfo.latestVersion}
+              releaseUrl={updateInfo.htmlUrl}
+              onNavigate={(url) => window.electronAPI.openExternalUrl(url)}
+            />
+          )}
         </div>
 
         {/* File path input */}
